@@ -70,6 +70,8 @@ function lexer(input) {
      *   ^      <-&-       ^ <---------------------------
      */
 
+    var input = input.split('\n').filter(l => !l.startsWith('//')).join('\n');
+
     input.split(/\s+/).filter(t => t.length > 0).forEach(t => {
 
         var type = getType(t);
@@ -83,9 +85,9 @@ function lexer(input) {
             if(type != expect) throw new Error(`Invalid token ${typeName(type)} (${t}), expected ${typeName(expect)}.`);
             if(type <= 3 || type == 5) wait[waitIndex] = t;
 
-            if(type == types.END) {
+            if(type === types.END) {
 
-                if(wait[waitIndex - 4] == types.name) {
+                if(getType(wait[waitIndex - 3]) === types.NAME) {
                     tokens.push(createVariable(getType(wait[waitIndex - 1]), wait[waitIndex - 3], wait[waitIndex - 1]));
                 }
 
