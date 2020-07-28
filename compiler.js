@@ -85,6 +85,12 @@ function mathSymbol(type) {
     return {_TYPE: "MATH", type: type};
 }
 
+function referenceVar(name) {
+    return {_TYPE: "VARIABLE", name: name, value: null};
+}
+
+/* */
+
 function lexer(input) {
 
     tokens = [];
@@ -119,17 +125,19 @@ function lexer(input) {
                 
                 var lastArg = token.arguments[token.arguments.length - 1];
                 if(lastArg != null) lastArg = lastArg.value;
-
+                
                 if(type === types.CLOSEBRACKET) waitIndex += 2;
                 else if(type <= 3 || type == 5) {
                     
-                    if(token.arguments.length > 0 && (lastArg < 11 || lastArg > 16)) throw new Error(`Invalid token ${typeName(type)} (${t}), expected [+ - / *].`);
-                    token.arguments.push(token.arguments.push(createLiteral(type, t)));
+                    if(lastArg != null && (lastArg < 11 || lastArg > 16)) throw new Error(`Invalid token ${typeName(type)} (${t}), expected [+ - / *].`);
+                    
+                    if(type == 3) token.arguments.push(createLiteral(type, t));
+                    if(type == 5) token.arguments.push(referenceVar(t));
 
                 } else if(type > 11 && type < 16) {
                     
-                    if(lastArg > 11 && lastArg < 16) throw new Error(`Invalid token ${typeName(type)} (${t}), expected non [+ - / *]`);
-                    else token.arguments.push(token.arguments.push(mathSymbol(t)));
+                    if(lastArg == null || (lastArg > 11 && lastArg < 16)) throw new Error(`Invalid token ${typeName(type)} (${t}), expected non [+ - / *]`);
+                    else token.arguments.push(mathSymbol(t));
 
                 }
                 
