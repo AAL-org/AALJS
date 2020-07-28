@@ -26,8 +26,11 @@ function getType (t) {
 
     if(t.match(/[0-9]+\.[0-92]+/g))       return types.FLOAT;
     if(!isNaN(t))                         return types.INTEGER;
-    if(t.match(/(true|false)/))           return types.BOOLEAN;
-    if(typeof t == 'string')              return types.STRING;
+    if(t.match(/(true|false)/g))          return types.BOOLEAN;
+    if(t.match(/".+"/g))                  return types.STRING;
+    if(t == ':')                          return types.OPERATOR;
+    if(t == ';')                          return types.END;
+    if(typeof t == 'string')              return types.NAME;
 
 }
 
@@ -45,8 +48,8 @@ function typeName(type) {
 
 }
 
-function createVariable(type, value) {
-    return {type: type, value: value};
+function createVariable(type, name, value) {
+    return {type: type, name: name, value: value};
 }
 
 function lexer(input) {
@@ -71,19 +74,19 @@ function lexer(input) {
 
         var type = getType(t);
 
-        console.log(wait);
-
         if(wait[waitIndex] != null) {
 
             var expect = wait[waitIndex];
 
-            if(type != expect) throw new Error(`Invalid token ${typeName(type)}, expected ${typeName(expect)}.`);
-            if(type < 3) ;
+            console.log(wait);
+
+            if(type != expect) throw new Error(`Invalid token ${typeName(type)} (${t}), expected ${typeName(expect)}.`);
+            if(type <= 3 || type == 5) wait[waitIndex] = t;
 
             if(type == types.END) {
 
                 if(wait[waitIndex - 4] == types.name) {
-                    tokens.push(createVariable(wait[typeName(waitIndex - 1), wait[waitIndex - 1]]));
+                    tokens.push(createVariable(getType(wait[waitIndex - 1]), wait[waitIndex - 3], wait[waitIndex - 1]));
                 }
 
             }
@@ -93,12 +96,10 @@ function lexer(input) {
 
         }
 
-        console.log(t);
-
-        if(t === 'int') {
-            console.log('Int!');
-            wait.concat([type.NAME, types.OPERATOR, types.END]);
-        }
+        if(t === 'int')    { wait = wait.concat([types.NAME, types.OPERATOR, types.INTEGER, types.END]); }
+        if(t === 'float')  { wait = wait.concat([types.NAME, types.OPERATOR, types.FLOAT,   types.END]); }
+        if(t === 'string') { wait = wait.concat([types.NAME, types.OPERATOR, types.STRING,  types.END]); }
+        if(t === 'bool')   { wait = wait.concat([types.NAME, types.OPERATOR, types.BOOLEAN, types.END]); }
 
     });
     
