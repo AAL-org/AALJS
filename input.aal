@@ -1,2 +1,4 @@
 string a : "bruh" ;
 int b :  14 ;
+
+print ( 12 ) ;

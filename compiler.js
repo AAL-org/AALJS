@@ -2,14 +2,18 @@ const f = require('fs');
 
 const types = {
     
-    INTEGER:  0,
-    FLOAT  :  1,
-    BOOLEAN:  2,
-    STRING :  3,
-    FUNCTION: 4,
-    NAME:     5, // Function / Variable Name
-    END:      6, // Semicolon
-    OPERATOR: 7  // ':' - Variable Assigner
+    INTEGER:       0,
+    FLOAT  :       1,
+    BOOLEAN:       2,
+    STRING :       3,
+    FUNCTION:      4,
+    NAME:          5, // Function / Variable Name
+    END:           6, // Semicolon
+    OPERATOR:      7, // ':' - Variable Assigner
+    PRINT:         8, // Write to stdout
+    OPENBRACKET:   9,
+    CLOSEBRACKET: 10,
+    ARGUMENTS   : 11
 
 };
 
@@ -28,8 +32,10 @@ function getType (t) {
     if(!isNaN(t))                         return types.INTEGER;
     if(t.match(/(true|false)/g))          return types.BOOLEAN;
     if(t.match(/".+"/g))                  return types.STRING;
-    if(t == ':')                          return types.OPERATOR;
-    if(t == ';')                          return types.END;
+    if(t === ':')                         return types.OPERATOR;
+    if(t === ';')                         return types.END;
+    if(t === 'print')                     return types.PRINT;
+    if(t === '(')                         return types.OPENBRACKET;
     if(typeof t == 'string')              return types.NAME;
 
 }
@@ -44,12 +50,13 @@ function typeName(type) {
     else if(type == 5) return "NAME";
     else if(type == 6) return "END";
     else if(type == 7) return "OPERATOR";
+    else if(type == 8) return "PRINT";
     else return `[Unknown Type (${type})]`;
 
 }
 
 function createVariable(type, name, value) {
-    return {type: type, name: name, value: value};
+    return {_TYPE: "VARIABLE", type: type, name: name, value: value}; //TODO: Replace with classes.
 }
 
 function lexer(input) {
@@ -80,10 +87,20 @@ function lexer(input) {
 
             var expect = wait[waitIndex];
 
-            console.log(wait);
+            if(expect == types.ARGUMENTS) {
+                
+                if(type < 3) tokens[tokens.length - 1].arguments.push(t);
+                else if(type === types.CLOSEBRACKET) waitIndex++;
+                
+                return;
+
+            }
 
             if(type != expect) throw new Error(`Invalid token ${typeName(type)} (${t}), expected ${typeName(expect)}.`);
+
             if(type <= 3 || type == 5) wait[waitIndex] = t;
+
+
 
             if(type === types.END) {
 
@@ -98,10 +115,19 @@ function lexer(input) {
 
         }
 
-        if(t === 'int')    { wait = wait.concat([types.NAME, types.OPERATOR, types.INTEGER, types.END]); }
-        if(t === 'float')  { wait = wait.concat([types.NAME, types.OPERATOR, types.FLOAT,   types.END]); }
-        if(t === 'string') { wait = wait.concat([types.NAME, types.OPERATOR, types.STRING,  types.END]); }
-        if(t === 'bool')   { wait = wait.concat([types.NAME, types.OPERATOR, types.BOOLEAN, types.END]); }
+        if(t === 'int')         wait = wait.concat([types.NAME, types.OPERATOR, types.INTEGER, types.END]);
+        else if(t === 'float')  wait = wait.concat([types.NAME, types.OPERATOR, types.FLOAT,   types.END]);
+        else if(t === 'string') wait = wait.concat([types.NAME, types.OPERATOR, types.STRING,  types.END]);
+        else if(t === 'bool')   wait = wait.concat([types.NAME, types.OPERATOR, types.BOOLEAN, types.END]);
+
+        else if(type <= 3) tokens.push({_TYPE: "LITERAL", type: type, value: t});
+
+        else if(type == types.PRINT) {
+            tokens.push({_TYPE: "PRINT", arguments: []});
+            wait = wait.concat([types.OPENBRACKET, types.ARGUMENTS, types.CLOSEBRACKET]);
+        }
+
+        else throw new Error(`Unexpected token ${typeName(type)} (${t})`);
 
     });
     
