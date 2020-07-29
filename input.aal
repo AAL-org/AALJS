@@ -1,7 +1,5 @@
-fn L () {
-
-fn ez () {
+fn epic () {
 
 }
 
-//Should error here but i guess not lol
+epic ( 1 + 1 ) ;

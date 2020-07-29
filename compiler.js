@@ -95,8 +95,12 @@ function mathSymbol(type) {
     return {_TYPE: "MATH", type: type};
 }
 
-function referenceVar(name) {
+function createVarRef(name) {
     return {_TYPE: "VARIABLE", name: name, value: null};
+}
+
+function createFuncCall(name) {
+    return {_TYPE: "FUNCTION_CALL", name: name, arguments: []};
 }
 
 /* */
@@ -148,8 +152,26 @@ function lexer(input) {
 
         var tokens = current.children;
 
-        console.log(wait.map(w => t + " | " + typeName(type)))
+
+        /* DEBUGGING */
+        
+        var _twi = -1;
+        console.log(wait.map(w => {
+            
+            _twi++;
+            
+            var isCurrent = _twi == waitIndex;
+            return (isCurrent ? "> " : "  ") + typeName(w) + (isCurrent ? ' | ' + t : '');
+
+
+        }));
+
+        console.log(current);
+
         // console.log('\n', JSON.stringify(current, null, 4));
+        // console.log(body.children);
+        
+        /* DEBUGGING */
 
         if(wait[waitIndex] != null) {
 
@@ -168,7 +190,7 @@ function lexer(input) {
                     if(lastArg != null && (lastArg < 11 || lastArg > 16)) throw new Error(`Invalid token ${typeName(type)} (${t}), expected [+ - / *].`);
                     
                     if(type == 3) token.arguments.push(createLiteral(type, t));
-                    if(type == 5) token.arguments.push(referenceVar(t));
+                    if(type == 5) token.arguments.push(createVarRef(t));
 
                 } else if(type > 11 && type < 16) {
                     
@@ -184,6 +206,9 @@ function lexer(input) {
             else if (expect === types.FNARGUMENTS) {
 
                 //TODO: Function Arguments;
+                //Function args specifically refers to the arguments that a
+                //Function takes as an input; e.g fn main(THIS) {}
+
                 if(type === types.CLOSEBRACKET) waitIndex += 2;
                 return;
 
@@ -191,9 +216,23 @@ function lexer(input) {
 
             else if(type !== expect) throw new Error(`Invalid token ${typeName(type)} (${t}), expected ${typeName(expect)}.`);
 
-            if(type === types.NAME && current.name === null) current.name = t;
+            else if(type === types.NAME && current.name === null) current.name = t;
+            else if(type === types.NAME) {
+                
+                //Function Call
+                if(wait[waitIndex + 2] === types.FNARGUMENTS) {
+                    console.log(createFuncCall(t))
+                    tokens.push(createFuncCall(t));
+                    console.log(tokens);
+                }
 
-            else if(type <= 3 || type === types.NAME) wait[waitIndex] = t;
+                else {
+                    wait[waitIndex] = t;
+                }
+
+            }
+
+            else if(type <= 3) wait[waitIndex] = t;
 
             else if(type === types.END) {
 
@@ -222,7 +261,7 @@ function lexer(input) {
 
         else if(type === types.FUNCTION) {
             
-            wait = wait.concat([types.NAME, types.OPENBRACKET, types.FNARGUMENTS, types.CLOSEBRACKET, types.OPENPEREN]);
+            wait = wait.concat([types.NAME, types.OPENBRACKET, types.ARGUMENTS, types.CLOSEBRACKET, types.OPENPEREN]);
             
             tokens.push({
                 _TYPE: "FUNCTION",
@@ -234,6 +273,11 @@ function lexer(input) {
 
             current = tokens[tokens.length - 1];
 
+        }
+
+        //TODO: Handle re-defining vars
+        else if(type === types.NAME) {
+            wait = wait.concat([types.OPENBRACKET, types.FNARGUMENTS, types.CLOSEBRACKET, types.END]);
         }
 
         else if(type === types.CLOSEPEREN) {
