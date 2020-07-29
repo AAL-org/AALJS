@@ -2,29 +2,33 @@ const f = require('fs');
 
 const types = {
     
-    INTEGER:       0,
-    FLOAT  :       1,
-    BOOLEAN:       2,
-    STRING :       3,
-    FUNCTION:      4,
-    NAME:          5, // Function / Variable Name
-    END:           6, // Semicolon
-    OPERATOR:      7, // ':' - Variable Assigner
-    PRINT:         8, // Write to stdout
-    OPENBRACKET:   9,
+    INTEGER     : 0,
+    FLOAT       : 1,
+    BOOLEAN     : 2,
+    STRING      : 3,
+    FUNCTION    : 4,
+    NAME        : 5, // Function / Variable Name
+    END         : 6, // Semicolon
+    OPERATOR    : 7, // ':' - Variable Assigner
+    PRINT       : 8, // Write to stdout
+    OPENBRACKET : 9,
     CLOSEBRACKET: 10,
     ARGUMENTS   : 11,
     MULTIPLY    : 12,
     DIVIDE      : 13,
     ADD         : 14,
-    SUBTRACT    : 15
+    SUBTRACT    : 15,
+    OPENPEREN   : 16,
+    CLOSEPEREN  : 17,
+    FNARGUMENTS : 18
 
 };
 
 (() => {
 
     let lexed = lexer(f.readFileSync('input.aal').toString());
-    console.log(JSON.stringify(lexed, null, 4));
+    console.log("\n\n\n", lexed);
+    // f.writeFileSync('out.ast', lexed);
 
 })();
 
@@ -38,6 +42,7 @@ function getType (t) {
     if(!isNaN(t))                         return types.INTEGER;
     if(t.match(/(true|false)/g))          return types.BOOLEAN;
     if(t.match(/".+"/g))                  return types.STRING;
+    if(t === 'fn')                        return types.FUNCTION;  
     if(t === ':')                         return types.OPERATOR;
     if(t === ';')                         return types.END;
     if(t === 'print')                     return types.PRINT;
@@ -45,8 +50,10 @@ function getType (t) {
     if(t === ')')                         return types.CLOSEBRACKET;
     if(t === '+')                         return types.ADD;
     if(t === '-')                         return types.SUBTRACT;
-    if(t === '*')                      return types.MULTIPLY;
+    if(t === '*')                         return types.MULTIPLY;
     if(t === '/')                         return types.DIVIDE;
+    if(t === '{')                         return types.OPENPEREN;
+    if(t === '}')                         return types.CLOSEPEREN;
     if(typeof t == 'string')              return types.NAME;
 
 }
@@ -62,13 +69,16 @@ function typeName(type) {
     else if(type == 6)  return "END";
     else if(type == 7)  return "OPERATOR";
     else if(type == 8)  return "PRINT";
-    else if(type == 9)  return "OPEN BRACKET '('";
-    else if(type == 10) return "CLOSE BRACKET ')'";
+    else if(type == 9)  return "OPEN BRACKET";
+    else if(type == 10) return "CLOSE BRACKET";
     else if(type == 11) return "[ARGUMENTS]";
     else if(type == 12) return "MULTIPLY";
     else if(type == 13) return "DIVIDE";
     else if(type == 14) return "ADD";
     else if(type == 15) return "SUBTRACT";
+    else if(type == 16) return "OPEN PEREN";
+    else if(type == 17) return "CLOSE PEREN";
+    else if(type == 18) return "[FN-ARGUMENTS]";
     else return `[Unknown Type (${type})]`;
 
 }
@@ -93,7 +103,13 @@ function referenceVar(name) {
 
 function lexer(input) {
 
-    tokens = [];
+    var body = {
+        _TYPE: "FUNCTION",
+        _PARENT: null,
+        children: []
+    }
+
+    var current = body;
     
     var wait = [];
     var waitIndex = 0;
@@ -107,13 +123,33 @@ function lexer(input) {
      * [NAME, OPERATOR, INTEGER, END];
      *   ^ -->   ^   -->   ^ -->  ^ --> (createVariable(v))
      *   ^      <-&-       ^ <---------------------------
+     * 
+     * In this example, the wait queue expects (after it sees an 'int')
+     * in the input file, that it should see a NAME for that int, an OPERATOR ':',
+     * an integer value for that, and then an END symbol ';'.
+     * 
+     * It then checks every 't' as it comes through, making sure it fits
+     * that pattern, erroring if it doesn't. Then, apon reaching the end
+     * it creates a new variable, with the type of whatever value was
+     * present 1 index ago, which is an integer. It doesn't read
+     * 'INTEGER' from the wait queue, as that is replaced with the
+     * integer value provided in the input, however we know the
+     * value will be the same, as it's type was checked to be an
+     * integer whilst the wait queue was still expecting an integer.
+     * It then gets tge name from 3 steps prior, and the value
+     * which we got earlier and creates the variable.
+     * 
      */
 
-    var input = input.split('\n').filter(l => !l.startsWith('//')).join('\n');
-
-    input.split(/\s+/).filter(t => t.length > 0).forEach(t => {
+    var input = input.split('\n').filter(l => !l.startsWith('//')).join('\n').replace(/([();])/g, ' $1 ');
+    input.split(/\s+(?=(?:[^\'"]*[\'"][^\'"]*[\'"])*[^\'"]*$)/).filter(t => t.length > 0).forEach(t => {
 
         var type = getType(t);
+
+        var tokens = current.children;
+
+        console.log(wait.map(w => t + " | " + typeName(type)))
+        // console.log('\n', JSON.stringify(current, null, 4));
 
         if(wait[waitIndex] != null) {
 
@@ -145,11 +181,21 @@ function lexer(input) {
 
             }
 
-            if(type !== expect) throw new Error(`Invalid token ${typeName(type)} (${t}), expected ${typeName(expect)}.`);
+            else if (expect === types.FNARGUMENTS) {
 
-            if(type <= 3 || type === 5) wait[waitIndex] = t;
+                //TODO: Function Arguments;
+                if(type === types.CLOSEBRACKET) waitIndex += 2;
+                return;
 
-            if(type === types.END) {
+            }
+
+            else if(type !== expect) throw new Error(`Invalid token ${typeName(type)} (${t}), expected ${typeName(expect)}.`);
+
+            if(type === types.NAME && current.name === null) current.name = t;
+
+            else if(type <= 3 || type === types.NAME) wait[waitIndex] = t;
+
+            else if(type === types.END) {
 
                 if(getType(wait[waitIndex - 3]) === types.NAME) {
                     tokens.push(createVariable(getType(wait[waitIndex - 1]), wait[waitIndex - 3], wait[waitIndex - 1]));
@@ -169,18 +215,39 @@ function lexer(input) {
 
         else if(type <= 3) tokens.push(createLiteral(type, t));
 
-        else if(type == types.PRINT) {
+        else if(type === types.PRINT) {
             tokens.push({_TYPE: "PRINT", arguments: []});
             wait = wait.concat([types.OPENBRACKET, types.ARGUMENTS, types.CLOSEBRACKET, types.END]);
+        }
+
+        else if(type === types.FUNCTION) {
+            
+            wait = wait.concat([types.NAME, types.OPENBRACKET, types.FNARGUMENTS, types.CLOSEBRACKET, types.OPENPEREN]);
+            
+            tokens.push({
+                _TYPE: "FUNCTION",
+                _PARENT: current,
+                name: null,
+                arguments: [],
+                children: []
+            });
+
+            current = tokens[tokens.length - 1];
+
+        }
+
+        else if(type === types.CLOSEPEREN) {
+            if(!current._PARENT) current = body;
+            else current = current._PARENT;
         }
 
         else throw new Error(`Unexpected token ${typeName(type)} (${t})`);
 
     });
 
-    if(wait[waitIndex] != null && wait[waitIndex] != END) throw new Error("Unexpected end of file.");
+    if(wait[waitIndex] != null && wait[waitIndex] != types.END) throw new Error("Unexpected end of file.");
     
-    return tokens;
+    return body;
 
 }
 

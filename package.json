@@ -1,0 +1,23 @@
+{
+  "name": "AALJS",
+  "version": "1.0.0",
+  "description": "AAL -> AST -> Something In JS",
+  "main": "compiler.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AAL-org/AALJS.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/AAL-org/AALJS/issues"
+  },
+  "homepage": "https://github.com/AAL-org/AALJS#readme",
+  "dependencies": {
+    "flatted": "^3.0.4"
+  }
+}

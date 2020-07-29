@@ -1,1 +1,7 @@
-print ( "Hello, World!" ) ;
+fn L () {
+
+fn ez () {
+
+}
+
+//Should error here but i guess not lol
