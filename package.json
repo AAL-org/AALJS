@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/AAL-org/AALJS#readme",
   "dependencies": {
+    "chalk": "^4.1.0",
     "flatted": "^3.0.4"
   }
 }

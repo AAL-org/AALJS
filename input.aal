@@ -1,5 +1,5 @@
-fn epic () {
+int ABC: 1;
 
-}
+int a: "b";
 
-epic ( 1 + 1 ) ;
+int DEF: 2;

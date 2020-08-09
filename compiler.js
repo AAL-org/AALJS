@@ -1,4 +1,6 @@
 const f = require('fs');
+const c = require('chalk');
+const chalk = require('chalk');
 
 const types = {
     
@@ -26,7 +28,11 @@ const types = {
 
 (() => {
 
-    let lexed = lexer(f.readFileSync('input.aal').toString());
+
+    var path = '/home/tascord/Project/AALJS/input.aal';
+    log(`Beginning parsing of file '${path.indexOf('/') > -1 ? path.split('/')[path.split('/').length - 1] : path}'.`);
+
+    let lexed = lexer(f.readFileSync(path).toString());
     console.log("\n\n\n", lexed);
     // f.writeFileSync('out.ast', lexed);
 
@@ -145,13 +151,14 @@ function lexer(input) {
      * 
      */
 
-    var input = input.split('\n').filter(l => !l.startsWith('//')).join('\n').replace(/([();])/g, ' $1 ');
-    input.split(/\s+(?=(?:[^\'"]*[\'"][^\'"]*[\'"])*[^\'"]*$)/).filter(t => t.length > 0).forEach(t => {
+    input = split(input);
+
+    var tokenIndex = -1;
+    input.forEach(t => {
+        tokenIndex++;
 
         var type = getType(t);
-
         var tokens = current.children;
-
 
         /* DEBUGGING */
         
@@ -187,14 +194,14 @@ function lexer(input) {
                 if(type === types.CLOSEBRACKET) waitIndex += 2;
                 else if(type <= 3 || type == 5) {
                     
-                    if(lastArg != null && (lastArg < 11 || lastArg > 16)) throw new Error(`Invalid token ${typeName(type)} (${t}), expected [+ - / *].`);
+                    if(lastArg != null && (lastArg < 11 || lastArg > 16)) lexError(`Invalid token ${typeName(type)} (${t}), expected [+ - / *].`, input, tokenIndex);
                     
                     if(type == 3) token.arguments.push(createLiteral(type, t));
                     if(type == 5) token.arguments.push(createVarRef(t));
 
                 } else if(type > 11 && type < 16) {
                     
-                    if(lastArg == null || (lastArg > 11 && lastArg < 16)) throw new Error(`Invalid token ${typeName(type)} (${t}), expected non [+ - / *]`);
+                    if(lastArg == null || (lastArg > 11 && lastArg < 16)) lexError(`Invalid token ${typeName(type)} (${t}), expected non [+ - / *]`, input, tokenIndex);
                     else token.arguments.push(mathSymbol(t));
 
                 }
@@ -214,22 +221,11 @@ function lexer(input) {
 
             }
 
-            else if(type !== expect) throw new Error(`Invalid token ${typeName(type)} (${t}), expected ${typeName(expect)}.`);
+            else if(type !== expect) lexError(`Invalid token ${typeName(type)} (${t}), expected ${typeName(expect)}.`, input, tokenIndex);
 
             else if(type === types.NAME && current.name === null) current.name = t;
             else if(type === types.NAME) {
-                
-                //Function Call
-                if(wait[waitIndex + 2] === types.FNARGUMENTS) {
-                    console.log(createFuncCall(t))
-                    tokens.push(createFuncCall(t));
-                    console.log(tokens);
-                }
-
-                else {
-                    wait[waitIndex] = t;
-                }
-
+                wait[waitIndex] = t;
             }
 
             else if(type <= 3) wait[waitIndex] = t;
@@ -241,7 +237,7 @@ function lexer(input) {
                 }
 
             }
-            
+
             waitIndex++;
             return;
 
@@ -275,8 +271,9 @@ function lexer(input) {
 
         }
 
-        //TODO: Handle re-defining vars
+        //TODO: Handle re-defining var values
         else if(type === types.NAME) {
+            tokens.push(createFuncCall(t));
             wait = wait.concat([types.OPENBRACKET, types.FNARGUMENTS, types.CLOSEBRACKET, types.END]);
         }
 
@@ -285,14 +282,32 @@ function lexer(input) {
             else current = current._PARENT;
         }
 
-        else throw new Error(`Unexpected token ${typeName(type)} (${t})`);
+        else lexError(`Unexpected token ${typeName(type)} (${t})`, input, tokenIndex);
 
     });
 
-    if(wait[waitIndex] != null && wait[waitIndex] != types.END) throw new Error("Unexpected end of file.");
+    if(wait[waitIndex] != null && wait[waitIndex] != types.END) lexError("Unexpected end of file.", input, tokenIndex);
     
     return body;
 
+}
+
+function split(input) {
+    return input.split('\n').filter(l => !l.startsWith('//')).join('\n').replace(/([();])/g, ' $1 ').split(/\s+(?=(?:[^\'"]*[\'"][^\'"]*[\'"])*[^\'"]*$)/).filter(t => t.length > 0);
+}
+
+function lexError(error, input, index) {
+
+    //TODO: Print whole line.
+    console.log('...' + input.slice(index - 2, index + 2).join(' ') + '...');
+    console.log(index)
+
+    process.exit(1);
+
+}
+
+function log(message, sub = null) {
+    console.log(`${c.blueBright('[AAL')}${c.yellowBright('JS')}${sub === null ? '' : (c.gray(' — ') + c.cyanBright(sub))}${c.blueBright('] ' + message)}`);
 }
 
 /* */
