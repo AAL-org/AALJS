@@ -1,5 +1,2 @@
-int ABC: 1;
-
-int a: "b";
-
-int DEF: 2;
+int a: 200;
+print(a);
