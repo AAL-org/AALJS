@@ -1,2 +1,5 @@
-int a: 200;
-print(a);
+int    the_pin: 25564;
+string the_password: "something secret";
+
+print("The pin is " + the_pin "!");
+print("And the password is: " + the_password);
